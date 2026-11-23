@@ -1,0 +1,15 @@
+{
+  "name": "Character Alchemy",
+  "short_name": "煉字",
+  "description": "Take Chinese characters apart, see what each part brings, and combine the parts again.",
+  "start_url": "./",
+  "scope": "./",
+  "display": "standalone",
+  "background_color": "#eef1ea",
+  "theme_color": "#1d6b59",
+  "icons": [
+    { "src": "icons/icon-192.png", "sizes": "192x192", "type": "image/png" },
+    { "src": "icons/icon-512.png", "sizes": "512x512", "type": "image/png" },
+    { "src": "icons/icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" }
+  ]
+}
