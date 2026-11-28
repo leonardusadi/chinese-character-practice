@@ -42,21 +42,14 @@
     toastTimer = setTimeout(() => t.remove(), 2400);
   }
 
-  // The device's own voice, where it has a Chinese one.
-  function speak(text) {
-    const synth = window.speechSynthesis;
-    if (!synth) return;
-    synth.cancel();
-    const u = new SpeechSynthesisUtterance(text);
-    u.lang = 'zh-TW';
-    const v = synth.getVoices().find((x) => /zh[-_]TW/i.test(x.lang)) || synth.getVoices().find((x) => /^zh/i.test(x.lang));
-    if (v) u.voice = v;
-    u.rate = 0.8;
-    synth.speak(u);
+  // Plays the recorded syllables for a character, a word or a line.
+  function hearBtn(syllables, text, label) {
+    return h('button', { class: 'ghost hear', type: 'button', 'aria-label': 'Hear ' + text, onclick: (e) => {
+      const b = e.currentTarget;
+      b.classList.add('playing');
+      ZL.say(syllables, text, (ok) => { b.classList.remove('playing'); if (!ok) toast('The sound could not be played.'); });
+    } }, label || 'Hear it');
   }
-  const speakBtn = (text) => window.speechSynthesis
-    ? h('button', { class: 'ghost', type: 'button', 'aria-label': 'Hear ' + text, onclick: () => speak(text) }, 'Hear it')
-    : null;
 
   // A character as a small tile: glyph, reading, meaning.
   function tile(c, opts) {
@@ -203,9 +196,11 @@
         h('p', { class: 'hint' }, p.subtitle + '. Tap any character to take it apart.'),
         h('div', { class: 'lines' }, p.lines.map((ln) => h('div', { class: 'line' },
           h('div', { class: 'line-zh' }, tappable(ln.zh)),
-          h('div', { class: 'line-py' }, ln.py),
+          h('div', { class: 'line-py' }, ln.py, ' ', hearBtn(ln.py.split(' '), ln.zh, 'Hear')),
           ln.tr.map((t) => h('div', { class: 'line-en' }, t)))))),
-      section('First met on page ' + page, tileList(newChars, 60)),
+      section('First met on page ' + page,
+        h('div', { class: 'row' }, h('button', { class: 'primary', type: 'button', onclick: () => { practice = { list: newChars, label: 'Page ' + page }; go('w-' + ZL.hex(newChars[0])); } }, 'Practise writing these ' + newChars.length)),
+        tileList(newChars, 60)),
       words.length ? section('Words from this page', h('div', { class: 'words' }, words.map(wordRow))) : null,
       section('Beyond the text',
         h('p', { class: 'hint' }, 'Characters the text does not use, chosen because they show the same parts at work and matter to a Theosophical reader.'),
@@ -225,7 +220,7 @@
   function wordRow(w) {
     return h('div', { class: 'word' },
       h('div', { class: 'word-zh' }, tappable(w.w)),
-      h('div', { class: 'word-meta' }, h('span', { class: 'py' }, w.py), ' ', h('span', {}, w.en)),
+      h('div', { class: 'word-meta' }, h('span', { class: 'py' }, w.py), ' ', h('span', {}, w.en), ' ', w.syl ? hearBtn(w.syl, w.w, 'Hear') : null),
       w.note ? h('div', { class: 'word-note' }, tappable(w.note)) : null);
   }
   function about() {
@@ -301,6 +296,7 @@
           h('p', { class: 'hint' }, fam.length + ' characters use it, ' + inTextN + ' of them in the text.'),
           h('div', { class: 'row' },
             h('button', { class: 'primary', type: 'button', onclick: () => go('a-' + ZL.hex(id)) }, 'Combine it with another part'),
+            e.py ? hearBtn([e.py], forms[0]) : null,
             ZL.has(id) && ZL.parts(id).length ? h('button', { class: 'ghost', type: 'button', onclick: () => go(charLink(id)) }, 'Take ' + id + ' apart') : null))),
       body,
       h('label', { class: 'check' }, h('input', { type: 'checkbox', id: 'rare', onchange: (ev) => { showRare = ev.target.checked; draw(); } }), ' Include rarer characters'));
@@ -382,23 +378,6 @@
     const words = ZL.wordsWith(c);
     const shapes = ZL.core.shapes[c] || [];
 
-    // --- writing
-    const guide = ZL.glyph(c, { cls: 'guide' });
-    const canvas = h('canvas', { class: 'pad', 'aria-label': 'Writing pad for ' + c });
-    const padWrap = h('div', { class: 'padwrap' }, guide.el, canvas);
-    let pad = null, guideOn = true;
-    const writeSec = section('Write it',
-      h('p', { class: 'hint' }, 'Trace over the grey character with a finger or stylus. Tap a coloured part above first to see only that part here.'),
-      padWrap,
-      h('div', { class: 'row' },
-        h('button', { class: 'ghost', type: 'button', onclick: () => { guide.el.classList.remove('off'); guideOn = true; guide.play(); } }, 'Play the strokes'),
-        h('button', { class: 'ghost', type: 'button', onclick: (ev) => { guideOn = !guideOn; guide.stop(); guide.el.classList.toggle('off', !guideOn); ev.target.textContent = guideOn ? 'Hide the guide' : 'Show the guide'; } }, 'Hide the guide'),
-        h('button', { class: 'ghost', type: 'button', onclick: () => pad && pad.undo() }, 'Undo'),
-        h('button', { class: 'ghost', type: 'button', onclick: () => pad && pad.clear() }, 'Clear')));
-    requestAnimationFrame(() => { pad = ZL.pad(canvas); cleanup = () => pad.destroy(); });
-    const origFocus = g.focus;
-    g.focus = (id) => { origFocus(id); guide.focus(id); };
-
     const facts = () => [
       'Character: ' + c + ' ' + inf.py + ' — ' + inf.long,
       inf.page ? 'It appears in the learner\'s text (瑤池金母消愆解罪報恩功德懺), first on page ' + inf.page + ', glossed there as "' + inf.en + '".' : 'It is not in the learner\'s text.',
@@ -418,7 +397,9 @@
           h('p', { class: 'gloss' }, inf.en),
           inf.long && inf.long.toLowerCase() !== inf.en.toLowerCase() ? h('p', { class: 'hint' }, inf.long) : null,
           how ? h('p', { class: 'how' }, tappable(how)) : h('p', { class: 'how' }, 'A basic shape'),
-          h('div', { class: 'row' }, speakBtn(c),
+          h('div', { class: 'row' },
+            h('button', { class: 'primary', type: 'button', onclick: () => go('w-' + ZL.hex(c)) }, 'Practise writing'),
+            hearBtn([inf.py], c),
             h('button', { class: 'ghost', type: 'button', onclick: () => g.play() }, 'Play the strokes'),
             ZL.family(c).length ? h('button', { class: 'ghost', type: 'button', onclick: () => go(partLink(ZL.canon(c))) }, 'Where ' + c + ' is a part') : null))),
       parts.length ? section('Made of', rowsEl, h('p', { class: 'hint' }, 'Tap a coloured square to see that part alone in the character.')) : null,
@@ -429,7 +410,6 @@
       same.length ? section('The same parts, arranged another way', tileList(same.map((x) => x.c), 12, (x) => same.find((y) => y.c === x).how)) : null,
       swaps.length ? section('Change one part', swaps) : null,
       words.length ? section('In words', h('div', { class: 'words' }, words.map(wordRow))) : null,
-      writeSec,
       section('Ask Claude', askBox({
         noteKey: 'c-' + c, facts,
         presets: [
@@ -439,6 +419,150 @@
           ['Look-alikes', 'Which characters are easily confused with ' + c + ' when writing by hand, and what tells them apart?'],
         ],
       })));
+  }
+
+  // ---------------------------------------------------------------- writing practice
+  // Each stroke is checked as it is drawn: right place, right direction, right order.
+  let practice = { list: [], label: '' };
+  const tally = {
+    all: () => store.get('zl-written', {}),
+    add(c, mode, slips) {
+      const all = tally.all(), t = all[c] || { outline: 0, memory: 0, clean: 0 };
+      t[mode] = (t[mode] || 0) + 1;
+      if (!slips && mode === 'memory') t.clean = (t.clean || 0) + 1;
+      all[c] = t;
+      store.set('zl-written', all);
+      return t;
+    },
+  };
+  function practiceList(c) {
+    if (practice.list.includes(c)) return practice;
+    const inf = ZL.info(c);
+    if (inf.page) return { list: Object.keys(ZL.core.chars).filter((x) => ZL.core.chars[x].page === inf.page), label: 'Page ' + inf.page };
+    const theme = ZL.core.themes.find((t) => t.chars.includes(c));
+    if (theme) return { list: Array.from(theme.chars), label: theme.title };
+    return { list: [c], label: '' };
+  }
+  function writeView(c) {
+    practice = practiceList(c);
+    const inf = ZL.info(c);
+    const list = practice.list, at = list.indexOf(c);
+    let mode = store.get('zl-mode', 'outline');
+    const stage = h('div', { class: 'stage' });
+    const status = h('p', { class: 'status', role: 'status' });
+    const record = h('p', { class: 'hint' });
+    const shown = h('span', { class: 'zh-inline big' }, c);
+    const actions = h('div', { class: 'row' });
+    let writer = null, pad = null, timer = null;
+    const css = (name) => getComputedStyle(document.documentElement).getPropertyValue(name).trim();
+    const showRecord = () => {
+      const t = tally.all()[c];
+      const n = t ? (t.outline || 0) + (t.memory || 0) : 0;
+      record.textContent = n ? 'Completed here ' + (n === 1 ? 'once' : n + ' times') + ', ' + (t.clean || 0) + ' from memory without a slip.' : '';
+    };
+    function clear() {
+      clearTimeout(timer);
+      if (writer) { try { writer.cancelQuiz(); } catch (e) { /* not started */ } writer = null; }
+      if (pad) { pad.destroy(); pad = null; }
+      stage.replaceChildren(h('div', { class: 'grid', html: '<svg viewBox="0 0 1024 1024" aria-hidden="true"><rect class="g-b" x="8" y="8" width="1008" height="1008" rx="28"/><g class="g-l"><line x1="8" y1="8" x2="1016" y2="1016"/><line x1="1016" y1="8" x2="8" y2="1016"/><line x1="512" y1="8" x2="512" y2="1016"/><line x1="8" y1="512" x2="1016" y2="512"/></g></svg>' }));
+    }
+    async function start() {
+      clear();
+      shown.hidden = mode === 'memory';
+      const rec = await ZL.strokes(c);
+      if (mode === 'free' || !rec || !rec[2]) {
+        const guide = ZL.glyph(c, { cls: 'guide', grid: false });
+        const canvas = h('canvas', { class: 'pad', 'aria-label': 'Writing pad for ' + c });
+        stage.append(guide.el, canvas);
+        pad = ZL.pad(canvas);
+        status.textContent = rec && rec[2] ? 'Free hand: trace over the grey character. Nothing is checked.' : 'There are no stroke outlines for this character, so it cannot be checked. Write it free hand.';
+        actions.replaceChildren(
+          h('button', { class: 'ghost', type: 'button', onclick: () => guide.play() }, 'Play the strokes'),
+          h('button', { class: 'ghost', type: 'button', onclick: () => pad.undo() }, 'Undo'),
+          h('button', { class: 'ghost', type: 'button', onclick: () => pad.clear() }, 'Clear'));
+        return;
+      }
+      const total = rec[0].length;
+      const target = h('div', { class: 'writer' });
+      stage.append(target);
+      const size = Math.round(stage.getBoundingClientRect().width);
+      writer = HanziWriter.create(target, c, {
+        width: size, height: size, padding: Math.round(size * 0.06),
+        showCharacter: false, showOutline: mode === 'outline',
+        strokeColor: css('--stroke'), outlineColor: css('--guide'), drawingColor: css('--jade'), highlightColor: css('--gold'),
+        drawingWidth: Math.max(14, Math.round(size / 16)), strokeAnimationSpeed: 1.2, delayBetweenStrokes: 220,
+        showHintAfterMisses: mode === 'outline' ? 2 : 3, highlightOnComplete: false,
+        charDataLoader: (ch, done) => done({ strokes: rec[0], medians: rec[2] }),
+      });
+      const mine = writer;
+      const begin = () => {
+        status.className = 'status';
+        status.textContent = (mode === 'memory' ? 'Write ' + inf.py + ', “' + inf.en + '”, from memory. ' : 'Write over the grey outline. ') + 'Stroke 1 of ' + total + '.';
+        mine.quiz({
+          leniency: 1.15,
+          onCorrectStroke: (d) => {
+            status.className = 'status';
+            status.textContent = d.strokesRemaining ? 'Stroke ' + (d.strokeNum + 2) + ' of ' + total + '.' : '';
+          },
+          onMistake: (d) => {
+            status.className = 'status miss';
+            status.textContent = 'Not that one. Stroke ' + (d.strokeNum + 1) + ' of ' + total + ': check where it starts and which way it runs.'
+              + (d.mistakesOnStroke >= (mode === 'outline' ? 2 : 3) ? ' The gold stroke shows it.' : '');
+          },
+          onComplete: (d) => {
+            if (writer !== mine) return;
+            const slips = d.totalMistakes;
+            tally.add(c, mode, slips);
+            showRecord();
+            status.className = 'status ' + (slips ? 'near' : 'good');
+            status.textContent = slips
+              ? 'Finished: all ' + total + ' strokes, with ' + slips + (slips === 1 ? ' slip' : ' slips') + ' on the way. Try it again for a clean run.'
+              : 'Correct. All ' + total + ' strokes, in order, without a slip.';
+            shown.hidden = false;
+            timer = setTimeout(() => {              // show what was just written, part by part
+              if (writer !== mine) return;
+              const g = ZL.glyph(c, { cls: 'done', grid: false });
+              stage.append(g.el);
+            }, 700);
+          },
+        });
+      };
+      actions.replaceChildren(
+        h('button', { class: 'ghost', type: 'button', onclick: start }, 'Start again'),
+        h('button', { class: 'ghost', type: 'button', onclick: () => {
+          if (writer !== mine) return;
+          stage.querySelector('.glyph.done')?.remove();
+          clearTimeout(timer);
+          mine.cancelQuiz();
+          mine.hideCharacter({ duration: 0 });
+          status.className = 'status';
+          status.textContent = 'Watch the strokes, then write them.';
+          mine.animateCharacter({ onComplete: () => { if (writer === mine) timer = setTimeout(() => { mine.hideCharacter({ duration: 200 }); begin(); }, 500); } });
+        } }, 'Show me first'));
+      begin();
+    }
+    const chip = (key, label) => h('button', { class: 'chip' + (mode === key ? ' on' : ''), type: 'button', 'aria-pressed': mode === key ? 'true' : 'false', onclick: (e) => {
+      mode = key;
+      store.set('zl-mode', key);
+      e.currentTarget.parentNode.querySelectorAll('.chip').forEach((b) => { const on = b === e.currentTarget; b.classList.toggle('on', on); b.setAttribute('aria-pressed', on ? 'true' : 'false'); });
+      start();
+    } }, label);
+    cleanup = clear;
+    showRecord();
+    mount(
+      backBar('Writing practice' + (practice.label ? ' · ' + practice.label : '')),
+      h('header', { class: 'write-head' },
+        h('h1', {}, shown, ' ', h('span', { class: 'py' }, inf.py), ' ', h('span', { class: 'gloss' }, inf.en)),
+        h('div', { class: 'row' }, hearBtn([inf.py], c), h('button', { class: 'ghost', type: 'button', onclick: () => go(charLink(c)) }, 'Its parts'))),
+      h('div', { class: 'chips', role: 'group', 'aria-label': 'How to practise' }, chip('outline', 'With the outline'), chip('memory', 'From memory'), chip('free', 'Free hand')),
+      stage, status, actions,
+      list.length > 1 ? h('div', { class: 'row pager' },
+        h('button', { class: 'ghost', type: 'button', disabled: at <= 0, onclick: () => go('w-' + ZL.hex(list[at - 1])) }, '‹ Previous'),
+        h('span', { class: 'hint' }, (at + 1) + ' of ' + list.length),
+        h('button', { class: 'primary', type: 'button', disabled: at >= list.length - 1, onclick: () => go('w-' + ZL.hex(list[at + 1])) }, 'Next ›')) : null,
+      record,
+      h('p', { class: 'hint' }, 'The check follows the mainland stroke order used by the stroke data. A few characters are ordered differently in Taiwan; where your teacher differs, follow your teacher.'));
+    requestAnimationFrame(start);
   }
 
   // ---------------------------------------------------------------- the bench
@@ -556,7 +680,7 @@
   let lastHash = null;
   function render() {
     if (cleanup) { cleanup(); cleanup = null; }
-    if (window.speechSynthesis) window.speechSynthesis.cancel();
+    ZL.hush();
     if (lastHash != null) scrolls.set(lastHash, window.scrollY);
     const name = (location.hash || '#text').slice(1);
     lastHash = name;
@@ -564,6 +688,7 @@
     const m = /^([a-z]+)(?:-(.+))?$/.exec(name) || [];
     const arg = m[2];
     if (m[1] === 'c' && arg && ZL.has(ZL.fromHex(arg))) { charView(ZL.fromHex(arg)); tab = store.get('zl-tab', 'text'); }
+    else if (m[1] === 'w' && arg && ZL.has(ZL.fromHex(arg))) { writeView(ZL.fromHex(arg)); tab = store.get('zl-tab', 'text'); }
     else if (m[1] === 'p' && arg) { partView(ZL.fromHex(arg)); tab = 'parts'; }
     else if (m[1] === 'parts') { partsView(); tab = 'parts'; }
     else if (m[1] === 'combine') { benchView(null); tab = 'combine'; }

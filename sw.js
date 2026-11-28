@@ -1,10 +1,10 @@
 // Offline support for the copy served from GitHub Pages. The app's own files are stored
-// when it is installed; stroke outlines are stored as each one is first opened.
+// when it is installed; stroke outlines and sounds are stored as each one is first opened.
 // Change VERSION whenever any file changes.
-const VERSION = 'zl-1.0.0';
+const VERSION = 'zl-1.1.0';
 const FILES = [
   './', 'index.html', 'manifest.webmanifest', 'css/app.css',
-  'js/data.js', 'js/glyph.js', 'js/pad.js', 'js/ask.js', 'js/app.js',
+  'js/vendor/hanzi-writer.min.js', 'js/data.js', 'js/glyph.js', 'js/pad.js', 'js/sound.js', 'js/ask.js', 'js/app.js',
   'data/core.json', 'data/dict.json',
   'icons/icon.svg', 'icons/icon-180.png', 'icons/icon-192.png', 'icons/icon-512.png',
 ];

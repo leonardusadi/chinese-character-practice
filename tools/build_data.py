@@ -8,11 +8,11 @@ Reads   content/*.json                 (the text's vocabulary and the hand-writt
         tools/.cache/graphics.txt
 Writes  data/core.json                 everything hand-written, loaded first
         data/dict.json                 one record per character: reading, meaning, parts, origin
-        data/strokes/NN.json           stroke outlines, each stroke tagged with the part it belongs to
+        data/strokes/NN.json           stroke outlines and centre lines, each stroke tagged with its part
 
 Nothing here needs a key or an account. The two downloads are public files.
 """
-import json, os, shutil, sys, urllib.request
+import json, os, re, shutil, sys, urllib.request
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 CACHE = os.path.join(ROOT, "tools", ".cache")
@@ -48,6 +48,17 @@ def big5_order(c):
 
 def load(name):
     return json.load(open(os.path.join(ROOT, "content", name), encoding="utf-8"))
+
+
+TONE_CH = "āáǎàēéěèīíǐìōóǒòūúǔùǖǘǚǜ"
+SYL = re.compile(rf"[a-zA-Zü]*?[{TONE_CH}][aeiouü]*(?:ng|n|r)?(?![aeiouü{TONE_CH}])|[a-zA-Zü]+")
+
+
+def split_py(text):
+    out = []
+    for w in re.sub(r"[^a-zA-Zü" + TONE_CH + r"]", " ", text).split():
+        out += SYL.findall(w) if len(re.findall(f"[{TONE_CH}]", w)) > 1 else [w]
+    return [x.lower() for x in out]
 
 
 def clean(s):
@@ -131,7 +142,7 @@ def main():
             continue
         m = mmah[c].get("matches") or []
         tags = " ".join("-" if p is None else ("".join(str(i) for i in p) or "-") for p in m)
-        shards[ord(c) % SHARDS][c] = [g["strokes"], tags]
+        shards[ord(c) % SHARDS][c] = [g["strokes"], tags, g["medians"]]
         have.add(c)
     sdir = os.path.join(ROOT, "data", "strokes")
     shutil.rmtree(sdir, ignore_errors=True)
@@ -142,10 +153,16 @@ def main():
         json.dump(s, open(p, "w", encoding="utf-8"), ensure_ascii=False, separators=(",", ":"))
         total += os.path.getsize(p)
 
+    all_words = text["words"] + words
+    for w in all_words:                           # one syllable per character, so a word can be played
+        syl = split_py(w["py"])
+        if len(syl) == sum(1 for ch in w["w"] if "\u3400" <= ch <= "\u9fff"):
+            w["syl"] = syl
+
     core = {
         "title": text["title"], "pages": text["pages"], "chars": text["chars"], "shapes": text["shapes"],
-        "words": text["words"] + words, "elements": elements, "readings": readings,
-        "recipes": recipes, "themes": themes, "shards": SHARDS,
+        "words": all_words, "elements": elements, "readings": readings,
+        "recipes": recipes, "themes": themes, "shards": SHARDS, "audioShards": 32,
     }
     json.dump(core, open(os.path.join(ROOT, "data", "core.json"), "w", encoding="utf-8"),
               ensure_ascii=False, separators=(",", ":"))

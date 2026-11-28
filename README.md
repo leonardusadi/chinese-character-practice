@@ -13,7 +13,10 @@ only how a character is written, but what it is made of and why.
   sits: 心 underneath, 忄 at the left, inside, hidden one level down.
 - **Combine** – choose two or three parts and see every character they make, arrangement by
   arrangement, including the arrangements that have no character.
-- **Write it** – a tracing pad over the grey character, with the strokes played in order.
+- **Practise writing** – write the character stroke by stroke, over its outline or from
+  memory. Each stroke is checked for place, direction and order, and the page says whether
+  the whole character was written correctly. A free-hand pad is there too.
+- **Hear it** – every character, word and line has recorded sound, stored with the app.
 - **Ask Claude** – for what the page cannot know: what a missing arrangement would mean,
   whether a rare variant exists, a deeper reading.
 
@@ -35,6 +38,13 @@ the page, using the viewer's own Claude account after asking permission once.
 This copy has no connection to Claude, so *Ask Claude* becomes *Copy for Claude*: it copies
 the question, with the facts from the card, ready to paste into a Claude chat.
 
+## Does it need AI to run?
+
+No. Taking characters apart, the families, the combinations, the writing check and the sound
+are all plain JavaScript working on files in this repository. They work offline once the app
+is on the Home Screen. Only the *Ask Claude* box involves AI, and only in the copy opened
+inside Claude.
+
 ## No keys, no accounts
 
 Nothing in this repository is secret and nothing needs to be. The app makes no network
@@ -51,7 +61,7 @@ does not call Claude at all. Notes you keep are saved in the browser on your dev
 | `content/elements.json` | Hand-written: the basic shapes, their variant forms, what each pictures. |
 | `content/words.json` | Hand-written: Theosophical vocabulary. |
 | `content/recipes.json`, `content/themes.json` | Starting points for *Combine*; the groups under *Beyond the text*. |
-| `data/` | Built from the above plus Make Me a Hanzi. Do not edit by hand. |
+| `data/` | Built from the above plus Make Me a Hanzi (and the voice model for `data/audio/`). Do not edit by hand. |
 
 The notes headed *A way to read it* and *Theosophical lens* are aids to memory and
 contemplation. They are kept apart from *How it was formed* on purpose: most characters join
@@ -65,19 +75,23 @@ not the same thing as a history.
 - A new reading: add the character to `content/readings.json`.
 - Then rebuild the data: `python3 tools/build_data.py` (downloads Make Me a Hanzi once into
   `tools/.cache/`, which is not committed).
+- Sound for a new syllable: `python3 tools/build_audio.py TTS_DIR` (the script's header says
+  which open voice model to download; it runs on your own machine).
 - To refresh the copy inside Claude: `python3 tools/build_artifact.py OUT_DIR`, then publish
   `OUT_DIR/index.html` with the files under `OUT_DIR/data/`.
 - Change `VERSION` in `sw.js` whenever a file changes, so installed copies update.
 
 To run locally: `python3 -m http.server` in this folder, then open `http://localhost:8000`.
 
-Plain HTML, CSS and JavaScript; no build step for the app itself and no dependencies.
+Plain HTML, CSS and JavaScript; no build step for the app itself, and one small library kept in the repository.
 
 | File | Purpose |
 | --- | --- |
 | `js/data.js` | Loads the dictionary, takes characters apart, finds families and combinations |
 | `js/glyph.js` | Draws a character from its stroke outlines, one colour per part |
-| `js/pad.js` | Tracing pad |
+| `js/pad.js` | Free-hand pad |
+| `js/sound.js` | Plays the recorded syllables |
+| `js/vendor/hanzi-writer.min.js` | Checks each written stroke (Hanzi Writer 3.5.0) |
 | `js/ask.js` | Ask Claude, or copy the question; notes kept on the device |
 | `js/app.js` | Screens |
 | `sw.js` | Offline cache for the GitHub Pages copy |
@@ -92,4 +106,10 @@ Plain HTML, CSS and JavaScript; no build step for the app itself and no dependen
 - `data/dict.json` and `data/strokes/` are reduced copies of those two files and remain under
   those licences. Stroke order follows the mainland standard; a few characters differ under
   Taiwan's Ministry of Education standard.
+- Stroke checking: [Hanzi Writer](https://github.com/chanind/hanzi-writer) by David Chanin,
+  MIT licence (copy in `js/vendor/`).
+- Sound: `data/audio/` was generated once with the open `matcha-icefall-zh-baker` voice from
+  the sherpa-onnx project. That voice was trained on a Data Baker recording released for
+  **non-commercial use only**, so keep the clips to personal study and do not sell anything
+  that includes them.
 - Which characters count as common Traditional characters is taken from the Big5 level-1 set.

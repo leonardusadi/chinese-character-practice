@@ -20,7 +20,7 @@ body = re.search(r"<!--APP-->(.*)<!--/APP-->", page, re.S).group(1)
 fonts = re.search(r'<link rel="stylesheet" href="(https://fonts\.googleapis\.com[^"]+)">', page).group(1)
 scripts = re.findall(r'<script src="([^"]+)"></script>', body)
 body = re.sub(r'\s*<script src="[^"]+"></script>', "", body)
-js = "\n".join(read(s) for s in scripts)
+js = ";\n".join(read(s).replace("</script", "<\\/script") for s in scripts)
 html = f"""<title>Character Alchemy</title>
 <meta name="claude:viewport-fit-sides" content="cover">
 <link rel="stylesheet" href="{fonts}">

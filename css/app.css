@@ -143,12 +143,30 @@ h1, h2, h3, p { margin: 0; }
 .sec > p { max-width: 38rem; }
 
 /* writing */
-.padwrap { position: relative; width: min(320px, 100%); aspect-ratio: 1; }
-.padwrap .glyph { position: absolute; inset: 0; width: 100%; }
-.padwrap .glyph .s { fill: var(--guide); }
-.padwrap .glyph.off .s, .padwrap .glyph.off .g-t { visibility: hidden; }
-.padwrap .glyph .g-t { fill: var(--guide); }
-.pad { position: absolute; inset: 0; width: 100%; height: 100%; touch-action: none; color: var(--ink); border-radius: 14px; cursor: crosshair; }
+.write-head { display: flex; flex-direction: column; gap: 8px; }
+.write-head h1 { font: 400 22px/1.3 var(--serif); }
+.write-head .gloss { font-size: 20px; }
+.stage { position: relative; width: min(360px, 100%); aspect-ratio: 1; align-self: center; background: var(--surface); border-radius: 14px;
+  touch-action: none; -webkit-user-select: none; user-select: none; -webkit-touch-callout: none; }
+.stage > * { position: absolute; inset: 0; }
+.stage .grid svg, .stage .writer svg { display: block; width: 100%; height: 100%; }
+.stage .writer { cursor: crosshair; }
+.stage .glyph { width: 100%; background: transparent; pointer-events: none; }
+.stage .glyph.guide .s, .stage .glyph.guide .g-t { fill: var(--guide); }
+.stage .glyph.done { background: var(--surface); animation: settle 0.5s ease-out; }
+@keyframes settle { from { opacity: 0; } to { opacity: 1; } }
+.pad { width: 100%; height: 100%; touch-action: none; color: var(--ink); border-radius: 14px; cursor: crosshair; }
+.status { min-height: 3em; text-align: center; font: 400 16px/1.5 var(--serif); align-self: center; max-width: 24rem; }
+.status.good { color: var(--p3); font-weight: 600; }
+.status.near { color: var(--gold); font-weight: 600; }
+.status.miss { color: var(--p0); }
+.stage ~ .row { justify-content: center; }
+.pager { justify-content: space-between !important; width: min(360px, 100%); align-self: center; }
+.ghost:disabled { opacity: 0.4; cursor: default; }
+.hear { min-height: 32px; padding: 0 10px; font-size: 13px; }
+.hero .hear, .write-head .hear, .part-hero .hear { min-height: 40px; padding: 0 14px; font-size: 15px; }
+.hear.playing { border-color: var(--jade); color: var(--jade); }
+.line-py .hear, .word-meta .hear { font-style: normal; font-family: var(--sans); vertical-align: middle; margin-left: 4px; }
 
 /* combine */
 .slots { display: flex; flex-wrap: wrap; gap: 10px; align-items: stretch; }
@@ -198,4 +216,4 @@ h1, h2, h3, p { margin: 0; }
 .tabs .t-en { font-size: 11px; letter-spacing: 0.06em; text-transform: uppercase; }
 .tabs button.on { color: var(--jade); }
 .toast { position: fixed; left: 50%; transform: translateX(-50%); bottom: calc(var(--tab-h) + 16px + env(safe-area-inset-bottom, 0px)); z-index: 30; background: var(--ink); color: var(--bg); padding: 9px 14px; border-radius: 10px; font-size: 14px; max-width: calc(100vw - 32px); }
-@media (prefers-reduced-motion: reduce) { .s { transition: none; } }
+@media (prefers-reduced-motion: reduce) { .s { transition: none; } .stage .glyph.done { animation: none; } }
